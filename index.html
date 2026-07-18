@@ -16,9 +16,6 @@
             --total-bg: #eff6ff;
             --total-text: #1e40af;
             --success: #10b981;
-            --gold: #fbbf24;
-            --silver: #94a3b8;
-            --bronze: #b45309;
         }
         * { box-sizing: border-box; }
         body {
@@ -207,7 +204,6 @@
             to { opacity: 1; transform: translateX(0); }
         }
 
-        /* Ranking Specific Styles */
         .rank-1 { background: #fffbeb !important; font-weight: 700; }
         .rank-2 { background: #f8fafc !important; }
         .rank-3 { background: #fff7ed !important; }
@@ -232,16 +228,17 @@
         <button class="tab-btn" data-tab="daily" onclick="switchTab('daily')">📅 Daily Reports</button>
         <button class="tab-btn" data-tab="summary" onclick="switchTab('summary')">📈 Summary</button>
         <button class="tab-btn" data-tab="ranking" onclick="switchTab('ranking')">🏆 Branch Ranking</button>
+        <button class="tab-btn" data-tab="individual" onclick="switchTab('individual')">👤 Individual Sales</button>
     </div>
 
     <!-- SMART PASTE TAB -->
     <div id="paste" class="tab-content active">
         <div class="controls">
-            <button class="btn btn-secondary" onclick="loadSample()">📥 Load Sample Data</button>
             <button class="btn btn-primary" onclick="parseData()">🔍 Parse & Auto-Save</button>
+            <button class="btn btn-secondary" onclick="clearTextarea()">🗑️ Clear</button>
             <div id="saveIndicator" class="hidden"></div>
         </div>
-        <textarea id="inputText" placeholder="Paste your daily cluster report here..."></textarea>
+        <textarea id="inputText" placeholder="Paste your daily cluster report here...&#10;&#10;Supports formats like:&#10;JULY 14, 2026&#10;July 14,2026&#10;☑️CLH CABUYAO 1&#10;PMAX= 47"></textarea>
         
         <div id="previewSection" class="hidden">
             <h3 style="margin-top: 25px; color: var(--text);">Preview Parsed Data</h3>
@@ -264,7 +261,7 @@
     <div id="daily" class="tab-content">
         <div class="controls">
             <div class="control-group">
-                <label>Select Date</label>
+                <label>Select Date (Calendar)</label>
                 <input type="date" id="dailyDateInput" onchange="renderDailyReport()" style="min-width: 200px;">
             </div>
             <button class="btn btn-danger" style="margin-left: auto;" onclick="clearAllData()">🗑️ Clear All Data</button>
@@ -327,136 +324,65 @@
         </div>
         <div id="rankingContainer"></div>
     </div>
+
+    <!-- INDIVIDUAL SALES TAB -->
+    <div id="individual" class="tab-content">
+        <div class="controls">
+            <div class="control-group">
+                <label>From Date</label>
+                <input type="date" id="indFromDate" onchange="renderIndividualReport()">
+            </div>
+            <div class="control-group">
+                <label>To Date</label>
+                <input type="date" id="indToDate" onchange="renderIndividualReport()">
+            </div>
+            <div class="control-group">
+                <label>Rank By</label>
+                <select id="indRankBy" onchange="renderIndividualReport()">
+                    <option value="pmax">PMAX</option>
+                    <option value="msa_pcs">MSA Pcs</option>
+                    <option value="combined">Combined Score</option>
+                </select>
+            </div>
+        </div>
+        <div id="individualContainer"></div>
+    </div>
 </div>
 
 <script>
-    const SAMPLE_TEXT = `JULY 14, 2026
-CABUYAO CLUSTER
-
-CLH CABUYAO 1
-PMAX- 4
-MSA- 100 / 1
-Deposit- 21,750 / 5
-PCP- 0
-HMAX- 0
-PENETRATION RATE - 3 / 21 = 14.28%
-
-CLH CABUYAO 2 
-PMAX-11 (m. Cel-6, irene-5) 
-MSA- 1
-Deposit- 23,300 /7
-PCP- 0
-HMAX- 0
-PENETRATION RATE - 7/12= 58.33%
-
-CLH KATAPATAN
-PMAX- 14 (Maam Rhoda-3; Analyn-11)
-MSA- 2
-Deposit- 160,710/3
-PCP- 0
-HMAX- 0
-PENETRATION RATE - 7/17 = 41.17%
-
-CLH PULO
-PMAX-  5 melanie
-MSA- 0
-Deposit- 60,000 /1
-PCP- 0
-HMAX- 0
-PENETRATION RATE - 5/5 = 100 %
-
-CLH MAMATID
-PMAX- 27
-MSA- 0
-Deposit- 35,000/3
-PCP- 0
-HMAX- 0
-PENETRATION RATE - 8/18=44.44%
- 
-CLH MABUHAY (offline)
-PMAX- 6(Sir Resty-4 Pinkz-2)
-MSA- 1
-Deposit- 53,250/6
-PCP- 0
-HMAX- 0
-PENETRATION RATE - 4/5=80%
-
-CLH CHECKPOINT
-PMAX- 5 (Rej)
-MSA- 0
-Deposit- 6,000/1
-PCP- 0
-HMAX- 0
-PENETRATION RATE - 2/10 = 20%
-
-CLH MAYAPA
-PMAX- 10
-MSA- 0
-Deposit- 16,850 / 8
-PCP- 0
-HMAX- 0
-PENETRATION RATE - 7/16 = 43.75%
-
-CLH KAPAYAPAAN
-PMAX- 7 (Sir Fred-4 / Airah-3)
-MSA-  0
-Deposit- 3,000/1
-PCP- 0
-HMAX- 0
-PENETRATION RATE - 1/7=14%
-
-CLH PALO ALTO
-PMAX- 3
-MSA- 0
-Deposit- 2,000 (1)
-PCP- 0
-HMAX- 0
-PENETRATION RATE - 3/4 = 75%`;
-
-    const PRELOADED_DATA = {
-        "2026-07-01": {
-            rawText: "July 1, 2026 data",
-            records: [
-                {date:"JULY 01, 2026",isoDate:"2026-07-01",branch:"CLH CABUYAO 1",pmax:18,msa_pcs:9,deposit_amount:32100,deposit_pcs:9,pcp:0,hmax:0,pen_with:18,pen_total:50,pen_pct:36},
-                {date:"JULY 01, 2026",isoDate:"2026-07-01",branch:"CLH CABUYAO 2",pmax:7,msa_pcs:0,deposit_amount:0,deposit_pcs:0,pcp:0,hmax:0,pen_with:7,pen_total:45,pen_pct:15.56},
-                {date:"JULY 01, 2026",isoDate:"2026-07-01",branch:"CLH KATAPATAN",pmax:31,msa_pcs:4,deposit_amount:47300,deposit_pcs:4,pcp:0,hmax:0,pen_with:32,pen_total:45,pen_pct:71.11},
-                {date:"JULY 01, 2026",isoDate:"2026-07-01",branch:"CLH PULO",pmax:2,msa_pcs:5,deposit_amount:44050,deposit_pcs:5,pcp:0,hmax:0,pen_with:2,pen_total:18,pen_pct:11.11},
-                {date:"JULY 01, 2026",isoDate:"2026-07-01",branch:"CLH MAMATID",pmax:33,msa_pcs:1,deposit_amount:4000,deposit_pcs:1,pcp:0,hmax:0,pen_with:2,pen_total:19,pen_pct:10.53},
-                {date:"JULY 01, 2026",isoDate:"2026-07-01",branch:"CLH MABUHAY",pmax:15,msa_pcs:4,deposit_amount:51098,deposit_pcs:4,pcp:0,hmax:0,pen_with:11,pen_total:40,pen_pct:27.5},
-                {date:"JULY 01, 2026",isoDate:"2026-07-01",branch:"CLH CHECKPOINT",pmax:3,msa_pcs:4,deposit_amount:23000,deposit_pcs:4,pcp:0,hmax:0,pen_with:3,pen_total:22,pen_pct:13.64},
-                {date:"JULY 01, 2026",isoDate:"2026-07-01",branch:"CLH MAYAPA",pmax:10,msa_pcs:0,deposit_amount:0,deposit_pcs:0,pcp:0,hmax:0,pen_with:10,pen_total:69,pen_pct:14.49},
-                {date:"JULY 01, 2026",isoDate:"2026-07-01",branch:"CLH KAPAYAPAAN",pmax:6,msa_pcs:8,deposit_amount:83250,deposit_pcs:8,pcp:0,hmax:0,pen_with:5,pen_total:30,pen_pct:16.67},
-                {date:"JULY 01, 2026",isoDate:"2026-07-01",branch:"CLH PALO ALTO",pmax:9,msa_pcs:0,deposit_amount:0,deposit_pcs:0,pcp:0,hmax:0,pen_with:9,pen_total:28,pen_pct:32.14}
-            ]
-        },
-        "2026-07-14": {
-            rawText: SAMPLE_TEXT,
-            records: [
-                {date:"JULY 14, 2026",isoDate:"2026-07-14",branch:"CLH CABUYAO 1",pmax:4,msa_pcs:1,deposit_amount:21750,deposit_pcs:5,pcp:0,hmax:0,pen_with:3,pen_total:21,pen_pct:14.29},
-                {date:"JULY 14, 2026",isoDate:"2026-07-14",branch:"CLH CABUYAO 2",pmax:11,msa_pcs:1,deposit_amount:23300,deposit_pcs:7,pcp:0,hmax:0,pen_with:7,pen_total:12,pen_pct:58.33},
-                {date:"JULY 14, 2026",isoDate:"2026-07-14",branch:"CLH KATAPATAN",pmax:14,msa_pcs:2,deposit_amount:160710,deposit_pcs:3,pcp:0,hmax:0,pen_with:7,pen_total:17,pen_pct:41.18},
-                {date:"JULY 14, 2026",isoDate:"2026-07-14",branch:"CLH PULO",pmax:5,msa_pcs:0,deposit_amount:60000,deposit_pcs:1,pcp:0,hmax:0,pen_with:5,pen_total:5,pen_pct:100},
-                {date:"JULY 14, 2026",isoDate:"2026-07-14",branch:"CLH MAMATID",pmax:27,msa_pcs:0,deposit_amount:35000,deposit_pcs:3,pcp:0,hmax:0,pen_with:8,pen_total:18,pen_pct:44.44},
-                {date:"JULY 14, 2026",isoDate:"2026-07-14",branch:"CLH MABUHAY",pmax:6,msa_pcs:1,deposit_amount:53250,deposit_pcs:6,pcp:0,hmax:0,pen_with:4,pen_total:5,pen_pct:80},
-                {date:"JULY 14, 2026",isoDate:"2026-07-14",branch:"CLH CHECKPOINT",pmax:5,msa_pcs:0,deposit_amount:6000,deposit_pcs:1,pcp:0,hmax:0,pen_with:2,pen_total:10,pen_pct:20},
-                {date:"JULY 14, 2026",isoDate:"2026-07-14",branch:"CLH MAYAPA",pmax:10,msa_pcs:0,deposit_amount:16850,deposit_pcs:8,pcp:0,hmax:0,pen_with:7,pen_total:16,pen_pct:43.75},
-                {date:"JULY 14, 2026",isoDate:"2026-07-14",branch:"CLH KAPAYAPAAN",pmax:7,msa_pcs:0,deposit_amount:3000,deposit_pcs:1,pcp:0,hmax:0,pen_with:1,pen_total:7,pen_pct:14.29},
-                {date:"JULY 14, 2026",isoDate:"2026-07-14",branch:"CLH PALO ALTO",pmax:3,msa_pcs:0,deposit_amount:2000,deposit_pcs:1,pcp:0,hmax:0,pen_with:3,pen_total:4,pen_pct:75}
-            ]
-        }
-    };
-
     let parsedRecords = [];
 
+    // Robust date parser - handles all formats
     function parseDisplayDate(str) {
-        const months = { JANUARY: '01', FEBRUARY: '02', MARCH: '03', APRIL: '04', MAY: '05', JUNE: '06', JULY: '07', AUGUST: '08', SEPTEMBER: '09', OCTOBER: '10', NOVEMBER: '11', DECEMBER: '12' };
-        const parts = str.toUpperCase().replace(/,/g, '').split(' ');
-        if (parts.length >= 3) return `${parts[2]}-${months[parts[0]]}-${parts[1].padStart(2, '0')}`;
-        return str;
+        const months = { 
+            JANUARY: '01', JAN: '01', FEBRUARY: '02', FEB: '02', 
+            MARCH: '03', MAR: '03', APRIL: '04', APR: '04', 
+            MAY: '05', JUNE: '06', JUN: '06', JULY: '07', JUL: '07', 
+            AUGUST: '08', AUG: '08', SEPTEMBER: '09', SEP: '09', SEPT: '09',
+            OCTOBER: '10', OCT: '10', NOVEMBER: '11', NOV: '11', 
+            DECEMBER: '12', DEC: '12' 
+        };
+        // Remove commas, normalize spaces
+        const cleaned = str.toUpperCase().replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+        const parts = cleaned.split(' ');
+        if (parts.length >= 3) {
+            const month = months[parts[0]];
+            const day = parts[1].padStart(2, '0');
+            const year = parts[2];
+            if (month && /^\d{4}$/.test(year)) {
+                return `${year}-${month}-${day}`;
+            }
+        }
+        return null;
     }
 
     function formatCurrency(num) {
         return '₱' + Number(num).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    // Strip emojis and icons from text
+    function stripIcons(text) {
+        return text.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]|[\u{1F900}-\u{1F9FF}]|[\u{200D}]|[\u{20E3}]|[\u{E0020}-\u{E007F}]|[☑️✅❌📍•⭐🔸🔹🔶🔷✔✖]/gu, '').trim();
     }
 
     function switchTab(tabId) {
@@ -470,81 +396,177 @@ PENETRATION RATE - 3/4 = 75%`;
         }
         if (tabId === 'summary') {
             if (!document.getElementById('summaryFromDate').value) {
-                document.getElementById('summaryFromDate').value = '2026-07-01';
-                document.getElementById('summaryToDate').value = '2026-07-31';
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('summaryFromDate').value = today;
+                document.getElementById('summaryToDate').value = today;
             }
             renderSummaryReport();
         }
         if (tabId === 'ranking') {
             if (!document.getElementById('rankFromDate').value) {
-                document.getElementById('rankFromDate').value = '2026-07-01';
-                document.getElementById('rankToDate').value = '2026-07-31';
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('rankFromDate').value = today;
+                document.getElementById('rankToDate').value = today;
             }
             renderRankingReport();
         }
+        if (tabId === 'individual') {
+            if (!document.getElementById('indFromDate').value) {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('indFromDate').value = today;
+                document.getElementById('indToDate').value = today;
+            }
+            renderIndividualReport();
+        }
     }
 
-    function loadSample() {
-        document.getElementById('inputText').value = SAMPLE_TEXT;
+    function clearTextarea() {
+        document.getElementById('inputText').value = '';
+        document.getElementById('previewSection').classList.add('hidden');
     }
 
     function parseData() {
         const text = document.getElementById('inputText').value;
+        if (!text.trim()) {
+            alert("❌ Please paste data first!");
+            return;
+        }
+        
         const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
         parsedRecords = [];
         let currentDate = '';
+        let currentIsoDate = '';
         let currentRecord = {};
+        let inPmaxSection = false;
+        let inMsaSection = false;
 
         for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const dateMatch = line.match(/^([A-Za-z]+\s+\d{1,2},\s+\d{4})/i);
-            if (dateMatch) { currentDate = dateMatch[1].toUpperCase(); continue; }
+            const originalLine = lines[i];
+            const line = stripIcons(originalLine); // Strip icons before parsing
+            
+            // Date detection - handles "JULY 14, 2026", "July 14,2026", "July 14 2026", etc.
+            const dateMatch = line.match(/^([A-Za-z]+\s+\d{1,2}\s*,?\s*\d{4})/i);
+            if (dateMatch) {
+                currentDate = dateMatch[1].toUpperCase();
+                currentIsoDate = parseDisplayDate(currentDate);
+                continue;
+            }
 
+            // Branch detection - icons already stripped
             const branchMatch = line.match(/^CLH\s+([A-Z0-9\s\-]+?)(?:\s*\(|$)/i);
             if (branchMatch) {
                 if (currentRecord.branch) parsedRecords.push(currentRecord);
                 currentRecord = {
                     date: currentDate,
-                    isoDate: parseDisplayDate(currentDate),
+                    isoDate: currentIsoDate,
                     branch: "CLH " + branchMatch[1].trim(),
                     pmax: 0, msa_pcs: 0, deposit_amount: 0, deposit_pcs: 0, 
-                    pcp: 0, hmax: 0, pen_with: 0, pen_total: 0, pen_pct: 0
+                    pcp: 0, hmax: 0, pen_with: 0, pen_total: 0, pen_pct: 0,
+                    individual_sales: []
                 };
+                inPmaxSection = false;
+                inMsaSection = false;
                 continue;
             }
 
             if (!currentRecord.branch) continue;
 
-            if (line.match(/^PMAX\s*-\s*/i)) {
-                const raw = line.replace(/^PMAX\s*-\s*/i, '').trim();
+            if (line.match(/^PMAX\s*[=\-]\s*/i)) {
+                const raw = line.replace(/^PMAX\s*[=\-]\s*/i, '').trim();
                 const numMatch = raw.match(/(\d+)/); 
                 currentRecord.pmax = numMatch ? parseInt(numMatch[1]) : 0;
-            } else if (line.match(/^MSA\s*-\s*/i)) {
-                const raw = line.replace(/^MSA\s*-\s*/i, '').trim();
+                inPmaxSection = true;
+                inMsaSection = false;
+            } else if (line.match(/^MSA\s*[=\-\/]\s*/i)) {
+                const raw = line.replace(/^MSA\s*[=\-\/]\s*/i, '').trim();
                 const nums = raw.match(/\d+/g);
                 if (nums) {
                     currentRecord.msa_pcs = nums.length > 1 ? parseInt(nums[nums.length - 1]) : parseInt(nums[0]);
                 }
-            } else if (line.match(/^Deposit\s*-\s*/i)) {
-                const raw = line.replace(/^Deposit\s*-\s*/i, '').trim().replace(/[^\d\/\,\(\)]/g, '');
-                const parts = raw.split(/[\s\/\(\)]+/).filter(p => p.length > 0);
-                if (parts.length >= 2) {
-                    currentRecord.deposit_amount = parseInt(parts[0].replace(/,/g, '')) || 0;
-                    currentRecord.deposit_pcs = parseInt(parts[1]) || 0;
-                } else if (parts.length === 1) {
-                    currentRecord.deposit_amount = parseInt(parts[0].replace(/,/g, '')) || 0;
+                inPmaxSection = false;
+                inMsaSection = true;
+            } else if (line.match(/^Deposit\s*[=\-]\s*/i)) {
+                const raw = line.replace(/^Deposit\s*[=\-]\s*/i, '').trim();
+                // Handle formats like "Cash Agent - 144800 / 3, POS - 107500 - , 2 )"
+                // Sum all amounts and pieces
+                const amountMatches = raw.match(/[\d,]+/g);
+                let totalAmount = 0;
+                let totalPcs = 0;
+                
+                if (amountMatches) {
+                    // Find the split between amounts and pieces
+                    const slashMatch = raw.match(/[\d,]+\s*[\/\(\)]\s*(\d+)/);
+                    if (slashMatch) {
+                        // Has format like "144800 / 3"
+                        const parts = raw.split(/[\/\(\)]/);
+                        if (parts.length >= 2) {
+                            const amtPart = parts[0].replace(/[^\d,]/g, '').replace(/,/g, '');
+                            const pcsPart = parts[1].match(/\d+/);
+                            totalAmount = parseInt(amtPart) || 0;
+                            totalPcs = pcsPart ? parseInt(pcsPart[0]) : 0;
+                        }
+                    } else {
+                        // Simple format like "22,019 /3" or "100"
+                        const cleanRaw = raw.replace(/[^\d\/\,\(\)]/gi, '');
+                        const parts = cleanRaw.split(/[\s\/\(\)]+/).filter(p => p.length > 0);
+                        if (parts.length >= 2) {
+                            totalAmount = parseInt(parts[0].replace(/,/g, '')) || 0;
+                            totalPcs = parseInt(parts[1]) || 0;
+                        } else if (parts.length === 1) {
+                            totalAmount = parseInt(parts[0].replace(/,/g, '')) || 0;
+                        }
+                    }
                 }
-            } else if (line.match(/^PCP\s*-\s*/i)) {
-                currentRecord.pcp = parseInt(line.replace(/^PCP\s*-\s*/i, '').trim()) || 0;
-            } else if (line.match(/^HMAX\s*-\s*/i)) {
-                currentRecord.hmax = parseInt(line.replace(/^HMAX\s*-\s*/i, '').trim()) || 0;
-            } else if (line.match(/^PENETRATION RATE\s*-\s*/i)) {
-                const raw = line.replace(/^PENETRATION RATE\s*-\s*/i, '').trim();
-                const match = raw.match(/(\d+)\s*\/\s*(\d+)\s*=\s*([\d\.]+)%?/);
+                
+                currentRecord.deposit_amount = totalAmount;
+                currentRecord.deposit_pcs = totalPcs;
+                inPmaxSection = false;
+                inMsaSection = false;
+            } else if (line.match(/^PCP\s*[=\-]\s*/i)) {
+                const val = line.replace(/^PCP\s*[=\-]\s*/i, '').trim();
+                currentRecord.pcp = parseInt(val) || 0;
+                inPmaxSection = false;
+                inMsaSection = false;
+            } else if (line.match(/^HMAX\s*[=\-]\s*/i)) {
+                const val = line.replace(/^HMAX\s*[=\-]\s*/i, '').trim();
+                currentRecord.hmax = parseInt(val) || 0;
+                inPmaxSection = false;
+                inMsaSection = false;
+            } else if (line.match(/^PENETRATION RATE\s*[=\-]\s*/i)) {
+                const raw = line.replace(/^PENETRATION RATE\s*[=\-]\s*/i, '').trim();
+                const match = raw.match(/(\d+)\s*\/\s*(\d+)\s*=?\s*([\d\.]+)%?/);
                 if (match) {
                     currentRecord.pen_with = parseInt(match[1]);
                     currentRecord.pen_total = parseInt(match[2]);
                     currentRecord.pen_pct = parseFloat(match[3]);
+                }
+                inPmaxSection = false;
+                inMsaSection = false;
+            } else if (inPmaxSection && (line.match(/^\t/) || line.match(/^\s{2,}/) || line.match(/^[A-Za-z]+\s*[\-]\s*\d+/))) {
+                // Individual PMAX entry
+                const nameMatch = line.match(/^([A-Za-z\s]+?)[\-\s]+(\d+)/);
+                if (nameMatch) {
+                    const name = nameMatch[1].trim().toUpperCase();
+                    const pmax = parseInt(nameMatch[2]);
+                    let salesPerson = currentRecord.individual_sales.find(s => s.name === name);
+                    if (!salesPerson) {
+                        salesPerson = { name, pmax: 0, msa_pcs: 0 };
+                        currentRecord.individual_sales.push(salesPerson);
+                    }
+                    salesPerson.pmax = pmax;
+                }
+            } else if (inMsaSection && (line.match(/^\t/) || line.match(/^\s{2,}/) || line.match(/^[A-Za-z]+\s*[\-]\s*\d+/))) {
+                // Individual MSA entry
+                const nameMatch = line.match(/^([A-Za-z\s]+?)[\-\s]+(\d+)/);
+                if (nameMatch) {
+                    const name = nameMatch[1].trim().toUpperCase();
+                    const msa = parseInt(nameMatch[2]);
+                    let salesPerson = currentRecord.individual_sales.find(s => s.name === name);
+                    if (!salesPerson) {
+                        salesPerson = { name, pmax: 0, msa_pcs: 0 };
+                        currentRecord.individual_sales.push(salesPerson);
+                    }
+                    salesPerson.msa_pcs = msa;
                 }
             }
         }
@@ -552,6 +574,11 @@ PENETRATION RATE - 3/4 = 75%`;
 
         if (parsedRecords.length === 0) {
             alert("❌ No valid data found. Please check your format.");
+            return;
+        }
+
+        if (!currentIsoDate) {
+            alert("❌ No date found in the pasted data. Please include a date like 'JULY 14, 2026' at the top.");
             return;
         }
 
@@ -572,12 +599,12 @@ PENETRATION RATE - 3/4 = 75%`;
         localStorage.setItem('cabuyao_aux_reports', JSON.stringify(allData));
         
         const indicator = document.getElementById('saveIndicator');
-        indicator.innerHTML = `✅ Auto-saved for ${parsedRecords[0].date}`;
+        indicator.innerHTML = `✅ Auto-saved for ${parsedRecords[0].date} (${parsedRecords.length} branches)`;
         indicator.classList.remove('hidden');
         
         setTimeout(() => {
             indicator.classList.add('hidden');
-        }, 3000);
+        }, 4000);
     }
 
     function renderPreview() {
@@ -615,11 +642,11 @@ PENETRATION RATE - 3/4 = 75%`;
         const dates = Object.keys(allData).sort().reverse();
         const input = document.getElementById('dailyDateInput');
         
-        const today = new Date().toISOString().split('T')[0];
-        if (dates.includes(today)) {
-            input.value = today;
-        } else if (dates.length > 0) {
-            input.value = dates[0];
+        // Set date input bounds based on available data
+        if (dates.length > 0) {
+            input.min = dates[dates.length - 1];
+            input.max = dates[0];
+            input.value = dates[0]; // Most recent date
         }
         
         renderDailyReport();
@@ -630,7 +657,7 @@ PENETRATION RATE - 3/4 = 75%`;
         const container = document.getElementById('dailyReportContainer');
         
         if (!date) {
-            container.innerHTML = '<div class="empty-state">Please select a date to view the daily report.</div>';
+            container.innerHTML = '<div class="empty-state">📅 Please select a date from the calendar to view the daily report.</div>';
             return;
         }
 
@@ -638,7 +665,7 @@ PENETRATION RATE - 3/4 = 75%`;
         const dayData = allData[date];
         
         if (!dayData) {
-            container.innerHTML = '<div class="empty-state">No data found for this date.</div>';
+            container.innerHTML = `<div class="empty-state">📭 No data found for ${date}.<br><br>Paste your report in the Smart Paste tab and click "Parse & Auto-Save".</div>`;
             return;
         }
 
@@ -692,7 +719,7 @@ PENETRATION RATE - 3/4 = 75%`;
         if (dayData && dayData.rawText) {
             document.getElementById('inputText').value = dayData.rawText;
             switchTab('paste');
-            alert("Raw text loaded! Edit the data and click 'Parse & Auto-Save' to update.");
+            alert("✅ Raw text loaded! Edit the data and click 'Parse & Auto-Save' to update.");
         }
     }
 
@@ -820,7 +847,6 @@ PENETRATION RATE - 3/4 = 75%`;
             return;
         }
 
-        // Aggregate by branch
         const branchTotals = {};
         allRecords.forEach(r => {
             if (!branchTotals[r.branch]) {
@@ -834,7 +860,6 @@ PENETRATION RATE - 3/4 = 75%`;
             branchTotals[r.branch].pen_total += r.pen_total;
         });
 
-        // Calculate final metrics and sort
         let rankedBranches = Object.values(branchTotals).map(b => {
             const pen_pct = b.pen_total > 0 ? ((b.pen_with / b.pen_total) * 100) : 0;
             return { ...b, pen_pct: parseFloat(pen_pct.toFixed(2)) };
@@ -904,6 +929,111 @@ PENETRATION RATE - 3/4 = 75%`;
         container.innerHTML = html;
     }
 
+    function renderIndividualReport() {
+        const fromDate = document.getElementById('indFromDate').value;
+        const toDate = document.getElementById('indToDate').value;
+        const rankBy = document.getElementById('indRankBy').value;
+        const container = document.getElementById('individualContainer');
+        
+        container.innerHTML = '';
+        if (!fromDate || !toDate) return;
+
+        const allData = JSON.parse(localStorage.getItem('cabuyao_aux_reports') || '{}');
+        let allSales = [];
+        
+        for (const [isoDate, dayData] of Object.entries(allData)) {
+            if (isoDate >= fromDate && isoDate <= toDate) {
+                dayData.records.forEach(r => {
+                    if (r.individual_sales && r.individual_sales.length > 0) {
+                        r.individual_sales.forEach(s => {
+                            allSales.push({
+                                name: s.name,
+                                branch: r.branch,
+                                pmax: s.pmax || 0,
+                                msa_pcs: s.msa_pcs || 0,
+                                date: r.date
+                            });
+                        });
+                    }
+                });
+            }
+        }
+
+        if (allSales.length === 0) {
+            container.innerHTML = '<div class="empty-state">No individual sales data found for the selected date range.</div>';
+            return;
+        }
+
+        const individualTotals = {};
+        allSales.forEach(s => {
+            const key = `${s.name}|${s.branch}`;
+            if (!individualTotals[key]) {
+                individualTotals[key] = { name: s.name, branch: s.branch, pmax: 0, msa_pcs: 0, days: 0 };
+            }
+            individualTotals[key].pmax += s.pmax;
+            individualTotals[key].msa_pcs += s.msa_pcs;
+            individualTotals[key].days += 1;
+        });
+
+        let rankedIndividuals = Object.values(individualTotals).map(i => {
+            const combined = i.pmax + (i.msa_pcs * 5);
+            return { ...i, combined };
+        });
+
+        if (rankBy === 'pmax') {
+            rankedIndividuals.sort((a, b) => b.pmax - a.pmax);
+        } else if (rankBy === 'msa_pcs') {
+            rankedIndividuals.sort((a, b) => b.msa_pcs - a.msa_pcs);
+        } else {
+            rankedIndividuals.sort((a, b) => b.combined - a.combined);
+        }
+
+        const rankLabels = {
+            pmax: 'PMAX',
+            msa_pcs: 'MSA Pcs',
+            combined: 'Combined Score (PMAX + MSA×5)'
+        };
+
+        let html = `<div class="ranking-card">
+            <h3>👤 Individual Sales Leaderboard: ${rankLabels[rankBy]}</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">Rank</th>
+                            <th>Name</th>
+                            <th>Branch</th>
+                            <th>PMAX</th>
+                            <th>MSA Pcs</th>
+                            <th>Combined Score</th>
+                            <th>Days Active</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+        rankedIndividuals.forEach((ind, index) => {
+            const rank = index + 1;
+            let medal = '';
+            let rowClass = '';
+            if (rank === 1) { medal = '🥇'; rowClass = 'rank-1'; }
+            else if (rank === 2) { medal = '🥈'; rowClass = 'rank-2'; }
+            else if (rank === 3) { medal = '🥉'; rowClass = 'rank-3'; }
+
+            html += `<tr class="${rowClass}">
+                <td><span class="medal">${medal}</span> #${rank}</td>
+                <td><strong>${ind.name}</strong></td>
+                <td>${ind.branch}</td>
+                <td style="font-weight: 600;">${ind.pmax}</td>
+                <td style="font-weight: 600;">${ind.msa_pcs}</td>
+                <td style="font-weight: 700; color: var(--primary);">${ind.combined}</td>
+                <td>${ind.days}</td>
+            </tr>`;
+        });
+
+        html += `</tbody></table></div></div>`;
+        container.innerHTML = html;
+    }
+
     function exportSummaryCSV() {
         const table = document.getElementById('summaryTable');
         let csv = [];
@@ -932,13 +1062,11 @@ PENETRATION RATE - 3/4 = 75%`;
         if (!confirm("⚠️ Are you sure you want to delete ALL saved reports? This cannot be undone.")) return;
         localStorage.removeItem('cabuyao_aux_reports');
         populateDailyDatePicker();
-        alert("All data cleared.");
+        alert("✅ All data cleared.");
     }
 
     window.onload = function() {
-        if (!localStorage.getItem('cabuyao_aux_reports')) {
-            localStorage.setItem('cabuyao_aux_reports', JSON.stringify(PRELOADED_DATA));
-        }
+        // Start fresh - no preloaded data
         populateDailyDatePicker();
     };
 </script>
